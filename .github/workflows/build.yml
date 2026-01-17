@@ -74,10 +74,6 @@ jobs:
       - name: Build application
         run: wails build -platform windows/amd64
 
-      - name: Compress with UPX
-        run: |
-          upx --best --lzma "build\bin\SpotiFLAC.exe"
-
       - name: Prepare artifacts
         run: |
           mkdir -p dist
