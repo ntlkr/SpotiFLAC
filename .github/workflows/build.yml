@@ -155,7 +155,5 @@ jobs:
             </details>
           files: |
             artifacts/windows-portable/*.exe
-            artifacts/macos-portable/*.dmg
-            artifacts/linux-portable/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
