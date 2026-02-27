@@ -4,7 +4,7 @@ import { Download, FolderOpen, CheckCircle, XCircle, FileText, FileCheck, Globe,
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger, } from "@/components/ui/tooltip";
 import type { TrackMetadata, TrackAvailability } from "@/types/api";
-import { TidalIcon, QobuzIcon, AmazonIcon } from "./PlatformIcons";
+import { TidalIcon, QobuzIcon, AmazonIcon, DeezerIcon } from "./PlatformIcons";
 import { usePreview } from "@/hooks/usePreview";
 interface TrackInfoProps {
     track: TrackMetadata & {
@@ -26,9 +26,9 @@ interface TrackInfoProps {
     downloadedCover?: boolean;
     failedCover?: boolean;
     skippedCover?: boolean;
-    onDownload: (isrc: string, name: string, artists: string, albumName?: string, spotifyId?: string, playlistName?: string, durationMs?: number, position?: number, albumArtist?: string, releaseDate?: string, coverUrl?: string, spotifyTrackNumber?: number, spotifyDiscNumber?: number, spotifyTotalTracks?: number, spotifyTotalDiscs?: number, copyright?: string, publisher?: string) => void;
+    onDownload: (id: string, name: string, artists: string, albumName?: string, spotifyId?: string, playlistName?: string, durationMs?: number, position?: number, albumArtist?: string, releaseDate?: string, coverUrl?: string, spotifyTrackNumber?: number, spotifyDiscNumber?: number, spotifyTotalTracks?: number, spotifyTotalDiscs?: number, copyright?: string, publisher?: string) => void;
     onDownloadLyrics?: (spotifyId: string, name: string, artists: string, albumName?: string, albumArtist?: string, releaseDate?: string, discNumber?: number) => void;
-    onCheckAvailability?: (spotifyId: string, isrc?: string) => void;
+    onCheckAvailability?: (spotifyId: string) => void;
     onDownloadCover?: (coverUrl: string, trackName: string, artistName: string, albumName?: string, playlistName?: string, position?: number, trackId?: string, albumArtist?: string, releaseDate?: string, discNumber?: number) => void;
     onOpenFolder: () => void;
     onBack?: () => void;
@@ -95,9 +95,9 @@ export function TrackInfo({ track, isDownloading, downloadingTrack, isDownloaded
               </div>)}
             </div>
           </div>
-          {track.isrc && (<div className="flex gap-2 flex-wrap">
-            <Button onClick={() => onDownload(track.isrc, track.name, track.artists, track.album_name, track.spotify_id, undefined, track.duration_ms, track.track_number, track.album_artist, track.release_date, track.images, track.track_number, track.disc_number, track.total_tracks, track.total_discs, track.copyright, track.publisher)} disabled={isDownloading || downloadingTrack === track.isrc}>
-              {downloadingTrack === track.isrc ? (<Spinner />) : (<>
+          {track.spotify_id && (<div className="flex gap-2 flex-wrap">
+            <Button onClick={() => onDownload(track.spotify_id || "", track.name, track.artists, track.album_name, track.spotify_id, undefined, track.duration_ms, track.track_number, track.album_artist, track.release_date, track.images, track.track_number, track.disc_number, track.total_tracks, track.total_discs, track.copyright, track.publisher)} disabled={isDownloading || downloadingTrack === track.spotify_id}>
+              {downloadingTrack === track.spotify_id ? (<Spinner />) : (<>
                 <Download className="h-4 w-4"/>
                 Download
               </>)}
@@ -134,7 +134,7 @@ export function TrackInfo({ track, isDownloading, downloadingTrack, isDownloaded
             </Tooltip>)}
             {track.spotify_id && onCheckAvailability && (<Tooltip>
               <TooltipTrigger asChild>
-                <Button onClick={() => onCheckAvailability(track.spotify_id!, track.isrc)} variant="outline" size="icon" disabled={checkingAvailability}>
+                <Button onClick={() => onCheckAvailability(track.spotify_id!)} variant="outline" size="icon" disabled={checkingAvailability}>
                   {checkingAvailability ? (<Spinner />) : availability ? (<CheckCircle className="h-4 w-4 text-green-500"/>) : (<Globe className="h-4 w-4"/>)}
                 </Button>
               </TooltipTrigger>
@@ -143,6 +143,7 @@ export function TrackInfo({ track, isDownloading, downloadingTrack, isDownloaded
                   <TidalIcon className={`w-4 h-4 ${availability.tidal ? "text-green-500" : "text-red-500"}`}/>
                   <QobuzIcon className={`w-4 h-4 ${availability.qobuz ? "text-green-500" : "text-red-500"}`}/>
                   <AmazonIcon className={`w-4 h-4 ${availability.amazon ? "text-green-500" : "text-red-500"}`}/>
+                  <DeezerIcon className={`w-4 h-4 ${availability.deezer ? "text-green-500" : "text-red-500"}`}/>
                 </div>) : (<p>Check Availability</p>)}
               </TooltipContent>
             </Tooltip>)}

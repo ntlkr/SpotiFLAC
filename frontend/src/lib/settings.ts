@@ -4,7 +4,7 @@ export type FolderPreset = "none" | "artist" | "album" | "year-album" | "year-ar
 export type FilenamePreset = "title" | "title-artist" | "artist-title" | "track-title" | "track-title-artist" | "track-artist-title" | "title-album-artist" | "track-title-album-artist" | "artist-album-title" | "track-dash-title" | "disc-track-title" | "disc-track-title-artist" | "custom";
 export interface Settings {
     downloadPath: string;
-    downloader: "auto" | "tidal" | "qobuz" | "amazon";
+    downloader: "auto" | "tidal" | "qobuz" | "amazon" | "deezer";
     theme: string;
     themeMode: "auto" | "light" | "dark";
     fontFamily: FontFamily;
@@ -21,9 +21,9 @@ export interface Settings {
     embedMaxQualityCover: boolean;
     operatingSystem: "Windows" | "linux/MacOS";
     tidalQuality: "LOSSLESS" | "HI_RES_LOSSLESS";
-    qobuzQuality: "6" | "7";
+    qobuzQuality: "6" | "7" | "27";
     amazonQuality: "original";
-    autoOrder: "tidal-qobuz-amazon" | "tidal-amazon-qobuz" | "qobuz-tidal-amazon" | "qobuz-amazon-tidal" | "amazon-tidal-qobuz" | "amazon-qobuz-tidal" | "tidal-qobuz" | "tidal-amazon" | "qobuz-tidal" | "qobuz-amazon" | "amazon-tidal" | "amazon-qobuz";
+    autoOrder: "tidal-qobuz-amazon-deezer" | "tidal-qobuz-deezer-amazon" | "tidal-amazon-qobuz-deezer" | "tidal-amazon-deezer-qobuz" | "tidal-deezer-qobuz-amazon" | "tidal-deezer-amazon-qobuz" | "qobuz-tidal-amazon-deezer" | "qobuz-tidal-deezer-amazon" | "qobuz-amazon-tidal-deezer" | "qobuz-amazon-deezer-tidal" | "qobuz-deezer-tidal-amazon" | "qobuz-deezer-amazon-tidal" | "amazon-tidal-qobuz-deezer" | "amazon-tidal-deezer-qobuz" | "amazon-qobuz-tidal-deezer" | "amazon-qobuz-deezer-tidal" | "amazon-deezer-tidal-qobuz" | "amazon-deezer-qobuz-tidal" | "deezer-tidal-qobuz-amazon" | "deezer-tidal-amazon-qobuz" | "deezer-qobuz-tidal-amazon" | "deezer-qobuz-amazon-tidal" | "deezer-amazon-tidal-qobuz" | "deezer-amazon-qobuz-tidal" | string;
     autoQuality: "16" | "24";
     allowFallback: boolean;
     useSpotFetchAPI: boolean;
@@ -31,6 +31,8 @@ export interface Settings {
     createPlaylistFolder: boolean;
     createM3u8File: boolean;
     useFirstArtistOnly: boolean;
+    useSingleGenre: boolean;
+    embedGenre: boolean;
 }
 export const FOLDER_PRESETS: Record<FolderPreset, {
     label: string;
@@ -78,6 +80,7 @@ export const TEMPLATE_VARIABLES = [
     { key: "{track}", description: "Track number", example: "01" },
     { key: "{disc}", description: "Disc number", example: "1" },
     { key: "{year}", description: "Release year", example: "2014" },
+    { key: "{date}", description: "Release date (YYYY-MM-DD)", example: "2014-10-27" },
 ];
 function detectOS(): "Windows" | "linux/MacOS" {
     const platform = window.navigator.platform.toLowerCase();
@@ -104,14 +107,16 @@ export const DEFAULT_SETTINGS: Settings = {
     tidalQuality: "LOSSLESS",
     qobuzQuality: "6",
     amazonQuality: "original",
-    autoOrder: "tidal-qobuz-amazon",
+    autoOrder: "tidal-qobuz-amazon-deezer",
     autoQuality: "16",
     allowFallback: true,
     useSpotFetchAPI: false,
     spotFetchAPIUrl: "https://spotify.afkarxyz.fun/api",
     createPlaylistFolder: true,
     createM3u8File: false,
-    useFirstArtistOnly: false
+    useFirstArtistOnly: false,
+    useSingleGenre: false,
+    embedGenre: true
 };
 export const FONT_OPTIONS: {
     value: FontFamily;
@@ -206,9 +211,6 @@ function getSettingsFromLocalStorage(): Settings {
             if (!('qobuzQuality' in parsed)) {
                 parsed.qobuzQuality = "6";
             }
-            if (parsed.qobuzQuality === "27") {
-                parsed.qobuzQuality = "6";
-            }
             if (!('amazonQuality' in parsed)) {
                 parsed.amazonQuality = "original";
             }
@@ -285,9 +287,6 @@ export async function loadSettings(): Promise<Settings> {
             if (!('qobuzQuality' in parsed)) {
                 parsed.qobuzQuality = "6";
             }
-            if (parsed.qobuzQuality === "27") {
-                parsed.qobuzQuality = "6";
-            }
             if (!('amazonQuality' in parsed)) {
                 parsed.amazonQuality = "original";
             }
@@ -308,6 +307,12 @@ export async function loadSettings(): Promise<Settings> {
             }
             if (!('useFirstArtistOnly' in parsed)) {
                 parsed.useFirstArtistOnly = false;
+            }
+            if (!('useSingleGenre' in parsed)) {
+                parsed.useSingleGenre = false;
+            }
+            if (!('embedGenre' in parsed)) {
+                parsed.embedGenre = true;
             }
             cachedSettings = { ...DEFAULT_SETTINGS, ...parsed };
             return cachedSettings!;
@@ -334,6 +339,7 @@ export interface TemplateData {
     track?: number;
     disc?: number;
     year?: string;
+    date?: string;
     playlist?: string;
 }
 export function parseTemplate(template: string, data: TemplateData): string {
@@ -347,6 +353,7 @@ export function parseTemplate(template: string, data: TemplateData): string {
     result = result.replace(/\{track\}/g, data.track ? String(data.track).padStart(2, "0") : "00");
     result = result.replace(/\{disc\}/g, data.disc ? String(data.disc) : "1");
     result = result.replace(/\{year\}/g, data.year || "0000");
+    result = result.replace(/\{date\}/g, data.date || "0000-00-00");
     result = result.replace(/\{playlist\}/g, data.playlist || "");
     return result;
 }
@@ -363,6 +370,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
         cachedSettings = settings;
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         await SaveToBackend(settings as any);
+        window.dispatchEvent(new CustomEvent('settingsUpdated', { detail: settings }));
     }
     catch (error) {
         console.error("Failed to save settings:", error);

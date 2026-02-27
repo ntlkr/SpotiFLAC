@@ -33,6 +33,7 @@ func BuildExpectedFilename(trackName, artistName, albumName, albumArtist, releas
 		filename = strings.ReplaceAll(filename, "{album}", safeAlbum)
 		filename = strings.ReplaceAll(filename, "{album_artist}", safeAlbumArtist)
 		filename = strings.ReplaceAll(filename, "{year}", year)
+		filename = strings.ReplaceAll(filename, "{date}", SanitizeFilename(releaseDate))
 		filename = strings.ReplaceAll(filename, "{playlist}", safePlaylist)
 		filename = strings.ReplaceAll(filename, "{creator}", safeCreator)
 
@@ -116,6 +117,19 @@ func SanitizeFilename(name string) string {
 	}
 
 	return sanitized
+}
+
+func GetFirstArtist(artistString string) string {
+	if artistString == "" {
+		return ""
+	}
+	delimiters := []string{", ", " & ", " feat. ", " ft. ", " featuring "}
+	for _, d := range delimiters {
+		if idx := strings.Index(strings.ToLower(artistString), d); idx != -1 {
+			return strings.TrimSpace(artistString[:idx])
+		}
+	}
+	return artistString
 }
 
 func NormalizePath(folderPath string) string {
