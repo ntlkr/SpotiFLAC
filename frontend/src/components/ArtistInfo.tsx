@@ -21,6 +21,7 @@ interface ArtistInfoProps {
         header?: string;
         gallery?: string[];
         followers: number;
+        total_albums?: number;
         genres: string[];
         biography?: string;
         verified?: boolean;
@@ -65,6 +66,7 @@ interface ArtistInfoProps {
     downloadingCoverTrack?: string | null;
     isBulkDownloadingCovers?: boolean;
     isBulkDownloadingLyrics?: boolean;
+    isMetadataLoading?: boolean;
     onSearchChange: (value: string) => void;
     onSortChange: (value: string) => void;
     onToggleTrack: (id: string) => void;
@@ -93,12 +95,48 @@ interface ArtistInfoProps {
     onTrackClick?: (track: TrackMetadata) => void;
     onBack?: () => void;
 }
-export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sortBy, selectedTracks, downloadedTracks, failedTracks, skippedTracks, downloadingTrack, isDownloading, bulkDownloadType, downloadProgress, currentDownloadInfo, currentPage, itemsPerPage, downloadedLyrics, failedLyrics, skippedLyrics, downloadingLyricsTrack, checkingAvailabilityTrack, availabilityMap, downloadedCovers, failedCovers, skippedCovers, downloadingCoverTrack, isBulkDownloadingCovers, isBulkDownloadingLyrics, onSearchChange, onSortChange, onToggleTrack, onToggleSelectAll, onDownloadTrack, onDownloadLyrics, onDownloadCover, onCheckAvailability, onDownloadAllLyrics, onDownloadAllCovers, onDownloadAll, onDownloadSelected, onStopDownload, onOpenFolder, onAlbumClick, onArtistClick, onPageChange, onTrackClick, onBack, }: ArtistInfoProps) {
+export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sortBy, selectedTracks, downloadedTracks, failedTracks, skippedTracks, downloadingTrack, isDownloading, bulkDownloadType, downloadProgress, currentDownloadInfo, currentPage, itemsPerPage, downloadedLyrics, failedLyrics, skippedLyrics, downloadingLyricsTrack, checkingAvailabilityTrack, availabilityMap, downloadedCovers, failedCovers, skippedCovers, downloadingCoverTrack, isBulkDownloadingCovers, isBulkDownloadingLyrics, isMetadataLoading = false, onSearchChange, onSortChange, onToggleTrack, onToggleSelectAll, onDownloadTrack, onDownloadLyrics, onDownloadCover, onCheckAvailability, onDownloadAllLyrics, onDownloadAllCovers, onDownloadAll, onDownloadSelected, onStopDownload, onOpenFolder, onAlbumClick, onArtistClick, onPageChange, onTrackClick, onBack, }: ArtistInfoProps) {
     const [downloadingHeader, setDownloadingHeader] = useState(false);
     const [downloadingAvatar, setDownloadingAvatar] = useState(false);
     const [downloadingGalleryIndex, setDownloadingGalleryIndex] = useState<number | null>(null);
     const [downloadingAllGallery, setDownloadingAllGallery] = useState(false);
     const [activeTab, setActiveTab] = useState<"albums" | "tracks" | "gallery">("albums");
+    const [activeAlbumFilter, setActiveAlbumFilter] = useState<string>("all");
+    const displayedAlbumCount = artistInfo.total_albums || albumList.length;
+    const fetchedAlbumCount = albumList.length;
+    const totalAlbumCount = artistInfo.total_albums || fetchedAlbumCount;
+    const totalTrackCount = albumList.reduce((sum, album) => sum + (album.total_tracks || 0), 0);
+    const fetchedTrackCount = trackList.length;
+    const albumCountLabel = isMetadataLoading && totalAlbumCount > 0 && fetchedAlbumCount < totalAlbumCount
+        ? `${fetchedAlbumCount.toLocaleString()} / ${totalAlbumCount.toLocaleString()} albums`
+        : `${displayedAlbumCount.toLocaleString()} ${displayedAlbumCount === 1 ? "album" : "albums"}`;
+    const resolvedTrackCount = totalTrackCount > 0 ? totalTrackCount : fetchedTrackCount;
+    const trackCountLabel = isMetadataLoading && totalTrackCount > 0 && fetchedTrackCount < totalTrackCount
+        ? `${fetchedTrackCount.toLocaleString()} / ${totalTrackCount.toLocaleString()} tracks`
+        : `${resolvedTrackCount.toLocaleString()} ${resolvedTrackCount === 1 ? "track" : "tracks"}`;
+    const albumFilterCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        counts.set("all", (albumList || []).length);
+        for (const album of albumList || []) {
+            const type = (album.album_type || "").trim().toLowerCase();
+            if (!type)
+                continue;
+            counts.set(type, (counts.get(type) || 0) + 1);
+        }
+        return counts;
+    }, [albumList]);
+    const albumFilters = useMemo(() => {
+        const uniqueTypes = Array.from(new Set((albumList || [])
+            .map((album) => (album.album_type || "").trim().toLowerCase())
+            .filter(Boolean)));
+        return ["all", ...uniqueTypes];
+    }, [albumList]);
+    const filteredAlbums = useMemo(() => {
+        if (activeAlbumFilter === "all") {
+            return albumList || [];
+        }
+        return (albumList || []).filter((album) => (album.album_type || "").trim().toLowerCase() === activeAlbumFilter);
+    }, [albumList, activeAlbumFilter]);
     const filteredAlbumGroups = useMemo(() => {
         const albumTypeMap = new Map(albumList.map(a => [a.name, a.album_type]));
         const albumGroups = trackList.reduce((acc, track) => {
@@ -125,6 +163,17 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
             return dateB.localeCompare(dateA);
         });
     }, [trackList, albumList]);
+    const formatAlbumFilterLabel = (value: string) => {
+        const count = albumFilterCounts.get(value) || 0;
+        if (value === "all")
+            return `All (${count})`;
+        const label = value
+            .split(/[_\s]+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(" ");
+        return `${label} (${count})`;
+    };
     const handleDownloadHeader = async () => {
         if (!artistInfo.header)
             return;
@@ -330,9 +379,9 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
                         </>)}
                     </div>
                     <div className="flex items-center gap-2 text-sm flex-wrap text-white/90">
-                      <span>{albumList.length} {albumList.length === 1 ? "album" : "albums"}</span>
+                      <span>{albumCountLabel}</span>
                       <span>•</span>
-                      <span>{trackList.length} {trackList.length === 1 ? "track" : "tracks"}</span>
+                      <span>{trackCountLabel}</span>
                       {artistInfo.genres.length > 0 && (<>
                           <span>•</span>
                           <span>{artistInfo.genres.join(", ")}</span>
@@ -383,9 +432,9 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
                     </>)}
                 </div>
                 <div className="flex items-center gap-2 text-sm flex-wrap">
-                  <span>{albumList.length} {albumList.length === 1 ? "album" : "albums"}</span>
+                  <span>{albumCountLabel}</span>
                   <span>•</span>
-                  <span>{trackList.length} {trackList.length === 1 ? "track" : "tracks"}</span>
+                  <span>{trackCountLabel}</span>
                   {artistInfo.genres.length > 0 && (<>
                       <span>•</span>
                       <span>{artistInfo.genres.join(", ")}</span>
@@ -412,7 +461,7 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
 
       {activeTab === "gallery" && hasGallery && (<div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold">Gallery ({artistInfo.gallery!.length})</h3>
+            <h3 className="text-2xl font-bold">Gallery ({artistInfo.gallery!.length.toLocaleString()})</h3>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button onClick={handleDownloadAllGallery} size="sm" variant="outline" disabled={downloadingAllGallery}>
@@ -459,8 +508,13 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
                     </Button>)}
             </div>
           </div>
+          {albumFilters.length > 1 && (<div className="flex flex-wrap gap-2">
+              {albumFilters.map((filter) => (<Button key={filter} size="sm" variant={activeAlbumFilter === filter ? "default" : "outline"} onClick={() => setActiveAlbumFilter(filter)}>
+                  {formatAlbumFilterLabel(filter)}
+                </Button>))}
+            </div>)}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {albumList.map((album) => {
+            {filteredAlbums.map((album) => {
                 const albumTracks = trackList.filter(t => t.album_name === album.name);
                 const tracksWithId = albumTracks.filter(t => t.spotify_id);
                 const isSelected = tracksWithId.length > 0 && tracksWithId.every(t => selectedTracks.includes(t.spotify_id!));
@@ -493,6 +547,9 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
               </div>);
             })}
           </div>
+          {filteredAlbums.length === 0 && (<div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+              No releases found for the selected discography filter.
+            </div>)}
         </div>)}
 
       {activeTab === "tracks" && trackList.length > 0 && (<div className="space-y-4">
@@ -562,13 +619,19 @@ export function ArtistInfo({ artistInfo, albumList, trackList, searchQuery, sort
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Download All Covers</p>
+                    <p>Download All Separate Covers</p>
                   </TooltipContent>
                 </Tooltip>)}
-              {downloadedTracks.size > 0 && (<Button onClick={onOpenFolder} size="sm" variant="outline">
-                  <FolderOpen className="h-4 w-4"/>
-                  Open Folder
-                </Button>)}
+              {downloadedTracks.size > 0 && (<Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={onOpenFolder} size="icon" variant="outline">
+                      <FolderOpen className="h-4 w-4"/>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Open Folder</p>
+                  </TooltipContent>
+                </Tooltip>)}
             </div>
           </div>
           {isDownloading && (<DownloadProgress progress={downloadProgress} currentTrack={currentDownloadInfo} onStop={onStopDownload}/>)}
