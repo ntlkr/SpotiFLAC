@@ -67,10 +67,6 @@ jobs:
           pnpm install
           pnpm run generate-icon
 
-      - name: Install UPX
-        run: |
-          choco install upx -y
-
       - name: Build application
         run: wails build -platform windows/amd64
 
@@ -236,11 +232,6 @@ jobs:
 
       - name: Build application
         run: wails build -platform linux/${{ matrix.goarch }}
-
-      - name: Compress with UPX
-        if: matrix.goarch == 'amd64'
-        run: |
-          upx --best --lzma build/bin/SpotiFLAC
 
       - name: Cache appimagetool
         id: cache-appimagetool
